@@ -6,7 +6,7 @@ jobs:
             php: "7.1"
         -
             php: "7.2"
-            env: lint=1
+            env: lint=1 coverage=1
         -
             php: "7.3"
         -
@@ -18,7 +18,9 @@ cache:
         - $HOME/.composer/cache
 
 before_script:
-    - phpenv config-rm xdebug.ini || echo "xdebug not available"
+    - if [[ $coverage != '1' ]]; then
+          phpenv config-rm xdebug.ini || echo "xdebug not available";
+      fi
 
 install:
     - if [[ $deps = 'low' ]]; then
@@ -31,8 +33,20 @@ install:
       fi
 
 script:
-    - vendor/bin/phpunit
+    - if [[ $coverage = '1' ]]; then
+          vendor/bin/phpunit --coverage-clover=coverage.clover;
+      else
+          vendor/bin/phpunit;
+      fi
     - if [[ $lint = '1' ]]; then
           vendor/bin/php-cs-fixer fix --dry-run --diff --no-ansi;
+      fi
+    - if [[ $lint = '1' ]]; then
           vendor/bin/phpstan analyse -c quality-analysis/phpstan/phpstan.neon;
+      fi
+
+after_success:
+    - if [[ $coverage = '1' ]]; then
+          wget https://scrutinizer-ci.com/ocular.phar;
+          php ocular.phar code-coverage:upload --format=php-clover coverage.clover;
       fi
